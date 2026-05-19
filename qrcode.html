@@ -46,92 +46,25 @@
     <div class="qrcode-container">
         <h1>人脸注册</h1>
         <p style="color: #888; font-size: 16px;">使用手机扫码进入注册页面</p>
+        <div style="padding: 15px; background: #e8f5e9; border-radius: 6px; margin-bottom: 15px;">
+            <p style="color: #2e7d32; font-weight: bold;">✅ 网站已部署成功！</p>
+            <p style="color: #555; font-size: 14px; margin-top: 5px;">公网地址：<br>${window.location.origin}</p>
+        </div>
         <div id="qrcode"></div>
         <div class="url-display" id="urlDisplay"></div>
         <p class="hint">确保手机和电脑连接到同一个WiFi</p>
     </div>
 
     <script>
-        // 获取局域网IP地址
-        async function getLocalIP() {
-            try {
-                const response = await fetch('https://api.ipify.org?format=json');
-                const data = await response.json();
-                return data.ip; // 获取公网IP作为备选
-            } catch {
-                return '192.168.1.100'; // 默认局域网IP
-            }
-        }
-
-        // 获取正确的注册页面URL
-        async function getRegisterUrl() {
-            const protocol = window.location.protocol;
-            const hostname = window.location.hostname;
-            const port = window.location.port;
-            const pathname = window.location.pathname.replace('qrcode.html', 'index.html');
-            
-            // 如果是本地地址，尝试获取局域网IP
-            if (hostname === 'localhost' || hostname === '127.0.0.1') {
-                // 创建一个隐藏的RTCPeerConnection来获取本地IP
-                return new Promise((resolve) => {
-                    try {
-                        const pc = new RTCPeerConnection({ iceServers: [] });
-                        pc.createDataChannel('');
-                        pc.createOffer().then(pc.setLocalDescription.bind(pc));
-                        
-                        pc.onicecandidate = function(e) {
-                            if (e.candidate) {
-                                const ipRegex = /([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})/;
-                                const match = e.candidate.candidate.match(ipRegex);
-                                if (match && !match[1].startsWith('127.')) {
-                                    const localIp = match[1];
-                                    pc.close();
-                                    resolve(`${protocol}//${localIp}${port ? ':' + port : ''}${pathname}`);
-                                }
-                            }
-                        };
-                        
-                        // 超时备用
-                        setTimeout(() => {
-                            pc.close();
-                            // 如果无法获取，显示提示让用户手动输入IP
-                            resolve(null);
-                        }, 3000);
-                    } catch {
-                        resolve(null);
-                    }
-                });
-            }
-            
-            // 使用当前地址
-            return `${protocol}//${hostname}${port ? ':' + port : ''}${pathname}`;
-        }
-
-        // 生成二维码
-        async function generateQRCode() {
-            const qrcodeDiv = document.getElementById('qrcode');
-            const urlDisplay = document.getElementById('urlDisplay');
-            const registerUrl = await getRegisterUrl();
-            
-            if (!registerUrl) {
-                // 无法自动获取IP，显示手动配置界面
-                qrcodeDiv.innerHTML = `
-                    <div style="padding: 20px;">
-                        <p style="color: #666; margin-bottom: 15px;">无法自动获取IP地址</p>
-                        <input type="text" id="manualIp" placeholder="请输入电脑IP地址" 
-                               style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px;">
-                        <button onclick="generateWithManualIP()" 
-                                style="width: 100%; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 4px;">
-                            生成二维码
-                        </button>
-                    </div>
-                `;
-                urlDisplay.innerHTML = '请输入电脑的局域网IP地址（如 192.168.1.100）';
-                return;
-            }
-            
-            // 显示URL
-            urlDisplay.innerHTML = `注册页面地址：<br>${registerUrl}`;
+        // 自动获取当前网站地址
+        const currentDomain = window.location.origin;
+        const registerUrl = currentDomain + '/index.html';
+        
+        function generateQR() {
+            // 显示地址
+            document.getElementById('urlDisplay').innerHTML = `
+                <span class="success">✅ 注册地址：</span><br>${registerUrl}
+            `;
             
             // 生成二维码
             const encodedUrl = encodeURIComponent(registerUrl);
@@ -143,46 +76,21 @@
             img.alt = '人脸注册二维码';
             
             img.onerror = function() {
-                qrcodeDiv.innerHTML = `
+                document.getElementById('qrcode').innerHTML = `
                     <div style="padding: 20px; background: #f9f9f9; border-radius: 8px;">
-                        <p style="color: #666; margin-bottom: 10px;">二维码加载失败，请手动访问：</p>
+                        <p style="color: #666;">二维码加载失败，请手动访问：</p>
                         <p style="font-size: 12px; word-break: break-all; color: #333;">${registerUrl}</p>
                     </div>
                 `;
             };
             
-            qrcodeDiv.innerHTML = '';
-            qrcodeDiv.appendChild(img);
+            document.getElementById('qrcode').innerHTML = '';
+            document.getElementById('qrcode').appendChild(img);
         }
-
-        // 手动输入IP后生成二维码
-        function generateWithManualIP() {
-            const manualIp = document.getElementById('manualIp').value.trim();
-            if (!manualIp) return;
-            
-            const protocol = window.location.protocol;
-            const port = window.location.port;
-            const registerUrl = `${protocol}//${manualIp}${port ? ':' + port : ''}/index.html`;
-            
-            const qrcodeDiv = document.getElementById('qrcode');
-            const urlDisplay = document.getElementById('urlDisplay');
-            
-            urlDisplay.innerHTML = `注册页面地址：<br>${registerUrl}`;
-            
-            const encodedUrl = encodeURIComponent(registerUrl);
-            const qrSize = 250;
-            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&data=${encodedUrl}`;
-            
-            const img = document.createElement('img');
-            img.src = qrUrl;
-            img.alt = '人脸注册二维码';
-            qrcodeDiv.innerHTML = '';
-            qrcodeDiv.appendChild(img);
-        }
-
-        // 页面加载完成后生成二维码
+        
+        // 页面加载时自动生成二维码
         document.addEventListener('DOMContentLoaded', function() {
-            generateQRCode();
+            generateQR();
         });
     </script>
 </body>
