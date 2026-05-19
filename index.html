@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>人脸注册 - CanMV K230</title>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin: 20px; }
+        #video { border: 2px solid #333; border-radius: 8px; }
+        #canvas { display: none; }
+        button { padding: 10px 20px; font-size: 16px; margin: 10px; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>人脸注册系统</h1>
+    
+    <div>
+        <video id="video" width="320" height="240" autoplay></video>
+        <canvas id="canvas" width="320" height="240"></canvas>
+    </div>
+    
+    <div>
+        <input type="text" id="name" placeholder="请输入姓名" required>
+        <button onclick="registerFace()">注册人脸</button>
+    </div>
+    
+    <div id="result"></div>
+
+    <script>
+        // 开发板IP地址（替换为实际IP）
+        const BOARD_IP = "192.168.1.100";  // 需要修改为开发板实际IP
+        
+        // 获取摄像头视频流（适配iOS）
+        async function initCamera() {
+            try {
+                // iOS需要特定的视频约束
+                const constraints = {
+                    video: {
+                        facingMode: 'user',
+                        width: { ideal: 640, max: 1280 },
+                        height: { ideal: 480, max: 720 },
+                        deviceId: undefined
+                    },
+                    audio: false
+                };
+                
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+                
+                // iOS需要等待视频加载
+                video.onloadedmetadata = function() {
+                    video.play().catch(e => {
+                        console.log("自动播放失败，需要用户交互:", e);
+                    });
+                };
+                
+                showResult("摄像头已就绪", "success");
+            } catch (err) {
+                console.error("摄像头访问失败:", err);
+                showResult("无法访问摄像头，请检查权限设置", "error");
+            }
+        }
+        
+        // 页面加载完成后初始化摄像头
+        document.addEventListener('DOMContentLoaded', function() {
+            // iOS需要用户交互才能访问摄像头，添加点击事件
+            document.body.addEventListener('click', function initOnClick() {
+                initCamera();
+                document.body.removeEventListener('click', initOnClick);
+            }, { once: true });
+            
+            // 非iOS设备自动初始化
+            initCamera();
+        });
+
+        // 注册人脸
+        async function registerFace() {
+            const name = document.getElementById('name').value.trim();
+            if (!name) {
+                showResult("请输入姓名！", "error");
+                return;
+            }
+
+            // 从视频捕获图像
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, 320, 240);
+            
+            // 转换为base64
+            const imageData = canvas.toDataURL('image/jpeg').split(',')[1];
+            
+            try {
+                // 发送到开发板
+                const response = await fetch(`http://${BOARD_IP}/register?name=${encodeURIComponent(name)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `image=${imageData}`
+                });
+                
+                const text = await response.text();
+                showResult(text, "success");
+                
+            } catch (err) {
+                showResult("注册失败，请检查网络连接！", "error");
+                console.error(err);
+            }
+        }
+
+        // 显示结果
+        function showResult(msg, type) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = type;
+            resultDiv.textContent = msg;
+        }
+    </script>
+</body>
+</html>
