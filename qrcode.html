@@ -48,7 +48,7 @@
         <p style="color: #888; font-size: 16px;">使用手机扫码进入注册页面</p>
         <div style="padding: 15px; background: #e8f5e9; border-radius: 6px; margin-bottom: 15px;">
             <p style="color: #2e7d32; font-weight: bold;">✅ 网站已部署成功！</p>
-            <p style="color: #555; font-size: 14px; margin-top: 5px;">公网地址：<br>${window.location.origin}</p>
+            <p style="color: #555; font-size: 14px; margin-top: 5px;">公网地址：<br><span id="domainDisplay">加载中...</span></p>
         </div>
         <div id="qrcode"></div>
         <div class="url-display" id="urlDisplay"></div>
@@ -61,27 +61,23 @@
         const registerUrl = currentDomain + '/index.html';
         
         function generateQR() {
-            // 显示地址
-            document.getElementById('urlDisplay').innerHTML = `
-                <span class="success">✅ 注册地址：</span><br>${registerUrl}
-            `;
+            // 显示域名
+            document.getElementById('domainDisplay').textContent = currentDomain;
+            
+            // 显示注册地址
+            document.getElementById('urlDisplay').innerHTML = '<span style="color: green; font-weight: bold;">✅ 注册地址：</span><br>' + registerUrl;
             
             // 生成二维码
             const encodedUrl = encodeURIComponent(registerUrl);
             const qrSize = 250;
-            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&data=${encodedUrl}`;
+            const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=' + qrSize + 'x' + qrSize + '&data=' + encodedUrl;
             
             const img = document.createElement('img');
             img.src = qrUrl;
             img.alt = '人脸注册二维码';
             
             img.onerror = function() {
-                document.getElementById('qrcode').innerHTML = `
-                    <div style="padding: 20px; background: #f9f9f9; border-radius: 8px;">
-                        <p style="color: #666;">二维码加载失败，请手动访问：</p>
-                        <p style="font-size: 12px; word-break: break-all; color: #333;">${registerUrl}</p>
-                    </div>
-                `;
+                document.getElementById('qrcode').innerHTML = '<div style="padding: 20px; background: #f9f9f9; border-radius: 8px;"><p style="color: #666;">二维码加载失败，请手动访问：</p><p style="font-size: 12px; word-break: break-all; color: #333;">' + registerUrl + '</p></div>';
             };
             
             document.getElementById('qrcode').innerHTML = '';
